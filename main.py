@@ -1,26 +1,27 @@
-from fastapi import FastAPI, HTTPException, Request # <--- Added Request
+from fastapi import FastAPI, HTTPException, Request
 from pymongo import MongoClient
-# --- NEW IMPORT ---
 from starlette.middleware.sessions import SessionMiddleware 
 
-from models import UserCreate, UserResponse
+# IMPORTANT: We import ALL the models we need, including the new Subject ones
+from models import UserCreate, UserResponse, SubjectCreate, SubjectResponse 
 import auth
 
 app = FastAPI()
 
-# --- ADD THIS BLOCK: SECURITY SETTINGS ---
+# --- SECURITY SETTINGS ---
 # This adds the "Wristband" system. 
 # "secret_key" should be a random string. It signs the cookies so users can't fake them.
 app.add_middleware(SessionMiddleware, secret_key="MY_SUPER_SECRET_KEY")
 
 # --- DATABASE CONNECTION ---
-# (Keep your existing connection string here!)
+# 🚨 Ensure this string has your REAL password (no < > symbols)
 CONNECTION_STRING = "mongodb+srv://cherry1024_db_user:pathfinder123@pathfindercluster.otvy0yu.mongodb.net/?appName=PathfinderCluster"
 
 try:
     client = MongoClient(CONNECTION_STRING)
     db = client['pathfinderDB']
     users_collection = db['users']
+    subjects_collection = db['subjects'] # We added this collection for Stage 4
     print("✅ Connected to MongoDB!")
 except Exception as e:
     print(f"❌ Connection failed: {e}")
@@ -29,20 +30,27 @@ except Exception as e:
 def read_root():
     return {"message": "PathfinderAI Backend is Running!"}
 
-# --- REGISTRATION (Keep this as is) ---
+# --- REGISTRATION ---
 @app.post("/register", response_model=UserResponse)
 def register_user(user: UserCreate):
-    # ... (Your existing registration code stays here) ...
-    # (Just copying it here for reference, don't delete your existing code!)
+    # 1. Check if email already exists
     existing_user = users_collection.find_one({"email": user.email})
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # 2. Hash password
     hashed_pass = auth.hash_password(user.password)
+    
+    # 3. Create user dict
     user_dict = {"email": user.email, "full_name": user.full_name, "password": hashed_pass}
+    
+    # 4. Save to DB
     result = users_collection.insert_one(user_dict)
+    
+    # 5. Return success
     return {"_id": str(result.inserted_id), "email": user.email, "full_name": user.full_name}
 
-# --- NEW: LOGIN ENDPOINT ---
+# --- LOGIN ---
 @app.post("/login")
 def login_user(request: Request, email: str, password: str):
     # 1. Find the user
@@ -53,22 +61,69 @@ def login_user(request: Request, email: str, password: str):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     
     # 3. Create Session (The Wristband)
-    # We store the user's email in the session to remember them.
     request.session['user_email'] = user['email']
     
     return {"message": f"Welcome back, {user['full_name']}! You are logged in."}
 
-# --- NEW: LOGOUT ENDPOINT ---
+# --- LOGOUT ---
 @app.post("/logout")
 def logout_user(request: Request):
-    # Clear the session
     request.session.clear()
     return {"message": "Logged out successfully"}
 
-# --- NEW: CHECK SESSION (To prove it works) ---
+# --- CHECK SESSION ---
 @app.get("/whoami")
 def get_current_user(request: Request):
     user_email = request.session.get('user_email')
     if not user_email:
         return {"message": "You are not logged in."}
     return {"message": f"You are currently logged in as {user_email}"}
+
+# --- CREATE SUBJECT (Stage 4 Feature) ---
+@app.post("/subjects", response_model=SubjectResponse)
+def create_subject(subject: SubjectCreate, request: Request):
+    # 1. Check if user is logged in
+    user_email = request.session.get('user_email')
+    if not user_email:
+        raise HTTPException(status_code=401, detail="You must be logged in to create subjects.")
+
+    # 2. Find the User's ID (to link the subject to them)
+    user = users_collection.find_one({"email": user_email})
+    
+    # 3. Create the Subject Data
+    subject_dict = {
+        "name": subject.name,
+        "description": subject.description,
+        "owner_id": str(user["_id"]) # This links the subject to the logged-in user
+    }
+
+    # 4. Save to MongoDB
+    result = subjects_collection.insert_one(subject_dict)
+
+    # 5. Return the result
+    return {
+        "_id": str(result.inserted_id),
+        "name": subject.name,
+        "description": subject.description,
+        "owner_id": str(user["_id"])
+    }
+
+# --- GET MY SUBJECTS (Stage 4 Feature) ---
+@app.get("/subjects", response_model=list[SubjectResponse])
+def get_my_subjects(request: Request):
+    # 1. Check login
+    user_email = request.session.get('user_email')
+    if not user_email:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    # 2. Find the User
+    user = users_collection.find_one({"email": user_email})
+
+    # 3. Find ONLY subjects that belong to this user
+    my_subjects = list(subjects_collection.find({"owner_id": str(user["_id"])}))
+
+    # 4. Convert _id to string for every subject found so Pydantic is happy
+    for sub in my_subjects:
+        sub["_id"] = str(sub["_id"])
+        
+    return my_subjects

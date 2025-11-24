@@ -1,0 +1,10 @@
+body{
+    background-color: #1B263B;
+    color:red;
+}
+
+.add_subj{
+   display:flex;
+   justify-content: flex start;
+   margin-left: 120px;
+}

@@ -1,0 +1,34 @@
+body{
+    background-color: #1B263B;
+}
+
+.form-login{
+    border: 2px solid black;
+    border-radius:20px;
+    padding:30px;
+    background-color:#BDE0FE;
+    width: 450px;
+    margin: 150px auto;
+    margin-top: 105px;
+    margin-bottom: 0px;
+}
+.form-signup{
+    border: 2px solid black;
+    border-radius:20px;
+    padding:30px;
+    background-color:#BDE0FE;
+    width: 450px;
+    margin: 150px auto;
+    margin-top: 55px;
+    margin-bottom: 0px;
+}
+.form-label{
+    text-align:justify;
+}
+#signuplnk{
+    text-align:justify;
+}
+.btn{
+    width:100px;
+}
+

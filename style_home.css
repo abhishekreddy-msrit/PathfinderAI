@@ -1,10 +1,40 @@
-body{
-    background-color: #1B263B;
-    color:red;
+/* --- Your Custom Styles --- */
+body {
+    background-color: #1B263B; /* Dark Blue Background */
+    color: red;
 }
 
-.add_subj{
-   display:flex;
-   justify-content: flex start;
-   margin-left: 120px;
+.add_subj {
+    display: flex;
+    justify-content: flex-start;
+    margin-left: 120px;
+}
+
+/* --- Bootstrap Overrides for Visibility --- */
+
+/* Ensure the top header bar stays white */
+header {
+    background-color: white;
+}
+
+/* Ensure text inside the Accordion (Subjects) is dark and readable */
+.accordion-button {
+    color: #1B263B; 
+    font-weight: bold;
+}
+
+/* Ensure text inside the Task List is black */
+.list-group-item {
+    color: #000;
+}
+
+/* Enforce red color on H2 headers to match your body style */
+h2 {
+    color: red;
+}
+
+/* Modal text color fixes (so they don't inherit the red/dark mix) */
+.modal-title, 
+.form-label {
+    color: black;
 }
